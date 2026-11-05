@@ -236,7 +236,9 @@ npx playwright test --config .\playwright.config.ts --project=model-driven-app
 ```
 
 For VS Code, open the repository folder and use the **Testing** panel with
-`packages/e2e-tests/playwright.config.ts` selected. **Playwright Test for VS Code**
+`packages/e2e-tests/playwright.config.ts` selected. In the **Playwright** section, enable only the
+`model-driven-app` project. The extension loads the config without a project, so a missing Maker
+Portal state is reported as a warning instead of stopping its test server. **Playwright Test for VS Code**
 (`ms-playwright.playwright`) is already recommended by `.vscode/extensions.json`.
 Listing tests does not launch the app; running them requires a valid MDA authentication state.
 The tests use Playwright's Chromium, independently of Edge used for authentication.

@@ -20,6 +20,9 @@ const playwrightTestRunName = 'Playwright Power Platform E2E Tests';
 // Check all required environment variables
 // Skip storage state validation in CI, when listing files, or in worker processes
 const isMainProcess = !process.env.TEST_WORKER_INDEX && !process.env.PLAYWRIGHT_WORKER;
+// The VS Code extension loads this config through `playwright test-server` without --project,
+// so exiting here would close its connection. Report the problem; runs still need valid state.
+const isTestServer = process.argv.includes('test-server');
 if (!process.argv.includes('list-files') && !process.env.CI && isMainProcess) {
   try {
     const validationResult = validateAuthState();
@@ -28,7 +31,9 @@ if (!process.argv.includes('list-files') && !process.env.CI && isMainProcess) {
       console.log('===========================================================');
       console.error(`❌ ${validationResult.message}`);
       console.log('===========================================================');
-      process.exit(1);
+      if (!isTestServer) {
+        process.exit(1);
+      }
     }
   } catch (error: any) {
     // In case auth config is incomplete (e.g., missing KeyVault vars in CI), skip validation
