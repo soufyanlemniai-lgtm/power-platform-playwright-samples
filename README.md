@@ -229,6 +229,7 @@ From the repository root, use:
 
 ```powershell
 Set-Location .\packages\e2e-tests
+npx playwright install chromium
 npm run auth:mda:headful -- --manual
 npx playwright test --config .\playwright.config.ts --project=model-driven-app --list
 npx playwright test --config .\playwright.config.ts --project=model-driven-app
@@ -238,6 +239,8 @@ For VS Code, open the repository folder and use the **Testing** panel with
 `packages/e2e-tests/playwright.config.ts` selected. **Playwright Test for VS Code**
 (`ms-playwright.playwright`) is already recommended by `.vscode/extensions.json`.
 Listing tests does not launch the app; running them requires a valid MDA authentication state.
+The tests use Playwright's Chromium, independently of Edge used for authentication.
+Run `npx playwright install chromium` after installing or updating Playwright if its browser is missing.
 
 ---
 
