@@ -170,6 +170,17 @@ npm run auth:mda:headful
 
 Storage state files are saved automatically to the path returned by `getStorageStatePath(email)` and picked up by `playwright.config.ts` via the `storageState` option.
 
+If you need to complete password sign-in or MFA yourself, use a fresh interactive MDA session:
+
+```bash
+npm run auth:mda:headful -- --manual
+```
+
+This mode does not require existing Maker Portal authentication. Complete sign-in in the Edge
+window without closing it yourself. The script waits up to five minutes for the authenticated
+MDA user context and requires CRM session cookies before saving the session and closing the
+browser. The normal MDA commands use the same completion check, rather than a fixed five-second wait.
+
 > **Tokens expired?** If you see `Authentication tokens have expired!` when running tests, simply re-running `npm run auth:headful` may not resolve it because the old state file is still present and being detected as valid by the script. **Delete the stale state file first**, then re-authenticate:
 >
 > ```bash
@@ -195,6 +206,38 @@ npx playwright test --project=model-driven-app
 npx playwright test --project=default        # canvas + maker portal
 npx playwright test --project=gen-ux
 ```
+
+#### INES model-driven smoke suite
+
+The `model-driven-app` project selects `packages/e2e-tests/tests/ines/mda/`.
+Its browser destination comes from `MODEL_DRIVEN_APP_URL` in the e2e package's `.env`;
+the URL does not generate test cases.
+
+The initial suite checks:
+
+- The configured INES app opens with an authenticated user context.
+- The Contacts grid opens without requiring any existing records.
+- An unsaved Contact form from ETNICAGAJ exposes the expected fields and the
+  `Salutations` (French) / `Salutation` (English) choice label.
+
+The tests do not fill fields, save, update, or delete records. The form check opens a
+blank draft using the Contact form ID shipped with ETNICAGAJ; it does not create a saved Contact.
+Northwind MDA samples remain under `tests/northwind/mda`, but are not selected by this
+project or the catch-all `default` project. Run only the INES project against INES.
+
+From the repository root, use:
+
+```powershell
+Set-Location .\packages\e2e-tests
+npm run auth:mda:headful -- --manual
+npx playwright test --config .\playwright.config.ts --project=model-driven-app --list
+npx playwright test --config .\playwright.config.ts --project=model-driven-app
+```
+
+For VS Code, open the repository folder and use the **Testing** panel with
+`packages/e2e-tests/playwright.config.ts` selected. **Playwright Test for VS Code**
+(`ms-playwright.playwright`) is already recommended by `.vscode/extensions.json`.
+Listing tests does not launch the app; running them requires a valid MDA authentication state.
 
 ---
 

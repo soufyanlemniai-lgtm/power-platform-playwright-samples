@@ -8,6 +8,7 @@
  * Usage:
  *   npm run auth:headful              # Authenticate to Power Apps maker portal
  *   npm run auth:headful -- --mda     # Authenticate to Model-Driven App (CRM domain)
+ *   npm run auth:mda:headful -- --manual # Complete MDA sign-in interactively
  */
 
 import {
@@ -17,10 +18,11 @@ import {
   addCertAuthRoute,
 } from 'power-platform-playwright-toolkit';
 import { ConfigHelper } from 'power-platform-playwright-toolkit';
-import { chromium } from '@playwright/test';
+import { chromium, type Browser } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as dotenv from 'dotenv';
+import { getModelDrivenSignInState, isModelDrivenCookie } from '../utils/model-driven-auth';
 
 // Load environment variables
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
@@ -30,6 +32,7 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
  * This creates a separate storage state file with 'mda-' prefix
  */
 async function authenticateModelDriven() {
+  let browser: Browser | undefined;
   try {
     console.log('🚀 Model-Driven App Authentication Setup');
     console.log('==========================================\n');
@@ -54,8 +57,10 @@ async function authenticateModelDriven() {
     console.log(`🔗 Model-Driven App URL: ${modelDrivenAppUrl}`);
     console.log(`📁 MDA Storage state: ${mdaStorageStatePath}\n`);
 
-    // First, ensure base authentication exists
-    if (!fs.existsSync(baseStorageStatePath)) {
+    const manual = process.argv.includes('--manual');
+
+    // Interactive sign-in starts a fresh MDA session without requiring Maker Portal auth.
+    if (!manual && !fs.existsSync(baseStorageStatePath)) {
       console.log('⚠️  Base authentication not found!');
       console.log('💡 Running base authentication first...\n');
       await authenticatePowerApps();
@@ -67,13 +72,13 @@ async function authenticateModelDriven() {
 
     // Launch browser with existing auth state
     console.log('🌐 Launching browser with existing authentication...');
-    const browser = await chromium.launch({
+    browser = await chromium.launch({
       headless,
       channel: 'msedge',
     });
 
     const context = await browser.newContext({
-      storageState: baseStorageStatePath,
+      storageState: manual ? undefined : baseStorageStatePath,
       ignoreHTTPSErrors: true,
       viewport: { width: 1920, height: 1080 },
     });
@@ -113,12 +118,17 @@ async function authenticateModelDriven() {
       timeout: 60000,
     });
 
-    // Wait for page to settle
-    await page.waitForTimeout(5000);
+    console.log('Complete sign-in and MFA in the browser if prompted.');
+    console.log('Waiting up to five minutes for the authenticated Model-Driven App...');
+    const signInState = await page.waitForFunction(
+      getModelDrivenSignInState,
+      new URL(modelDrivenAppUrl).origin,
+      { timeout: 300000, polling: 500 }
+    );
+    const status = await signInState.jsonValue();
+    await signInState.dispose();
 
-    // Check if we're on an error page
-    const errorElement = await page.locator('text=An error has occurred').count();
-    if (errorElement > 0) {
+    if (status === 'error') {
       console.log('\n⚠️  Error page detected!');
       console.log('💡 This might indicate:');
       console.log('   1. Invalid app ID in MODEL_DRIVEN_APP_URL');
@@ -131,8 +141,14 @@ async function authenticateModelDriven() {
       await page.screenshot({ path: screenshotPath, fullPage: true });
       console.log(`📸 Screenshot saved: ${screenshotPath}\n`);
 
-      await browser.close();
-      process.exit(1);
+      throw new Error('The Model-Driven App opened an error page. See model-driven-error.png.');
+    }
+
+    const cookies = await context.cookies(modelDrivenAppUrl);
+    if (!cookies.some(isModelDrivenCookie)) {
+      throw new Error(
+        'No CRM session cookies were established. Authentication state was not saved.'
+      );
     }
 
     console.log('✅ Successfully accessed Model-Driven App!');
@@ -140,8 +156,6 @@ async function authenticateModelDriven() {
     // Save the storage state with CRM cookies
     await context.storageState({ path: mdaStorageStatePath });
     console.log(`💾 MDA storage state saved: ${mdaStorageStatePath}`);
-
-    await browser.close();
 
     console.log('\n✅ Model-Driven App authentication complete!');
     console.log('💡 You can now run MDA tests with: npm test -- model-driven-direct-url.test.ts');
@@ -154,6 +168,8 @@ async function authenticateModelDriven() {
     console.log('   3. Verify your user has access to the Model-Driven App');
     console.log('   4. Check the app ID in the URL is correct');
     throw error;
+  } finally {
+    await browser?.close();
   }
 }
 
@@ -193,6 +209,9 @@ async function authenticatePowerApps() {
 async function authenticate() {
   try {
     const isMDA = process.argv.includes('--mda');
+    if (process.argv.includes('--manual') && (!isMDA || !process.argv.includes('--headful'))) {
+      throw new Error('Manual sign-in requires: npm run auth:mda:headful -- --manual');
+    }
 
     if (isMDA) {
       // Authenticate to Model-Driven App (CRM domain)

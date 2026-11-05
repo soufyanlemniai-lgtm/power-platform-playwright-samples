@@ -2,7 +2,7 @@
 // Licensed under the MIT license.
 
 /**
- * Model-Driven App fixture for Northwind Orders runtime tests.
+ * Model-Driven App fixture for runtime tests.
  *
  * Launches the MDA via AppProvider using the direct URL set in MODEL_DRIVEN_APP_URL
  * (or BASE_APP_URL) and returns a ready ModelDrivenAppPage instance.
@@ -29,12 +29,14 @@ import {
 } from 'power-platform-playwright-toolkit';
 
 type MdaFixtures = {
-  /** ModelDrivenAppPage for the Northwind Orders MDA, launched and ready. */
+  modelDrivenAppName: string;
+  /** ModelDrivenAppPage for the configured MDA, launched and ready. */
   modelDrivenApp: ModelDrivenAppPage;
 };
 
 export const test = base.extend<MdaFixtures>({
-  modelDrivenApp: async ({ page, context }, use) => {
+  modelDrivenAppName: ['Northwind Orders', { option: true }],
+  modelDrivenApp: async ({ page, context, modelDrivenAppName }, use) => {
     const appUrl = process.env.MODEL_DRIVEN_APP_URL || process.env.BASE_APP_URL;
     if (!appUrl) {
       throw new Error(
@@ -46,7 +48,7 @@ export const test = base.extend<MdaFixtures>({
 
     const appProvider = new AppProvider(page, context);
     await appProvider.launch({
-      app: 'Northwind Orders',
+      app: modelDrivenAppName,
       type: AppType.ModelDriven,
       mode: AppLaunchMode.Play,
       skipMakerPortal: true,

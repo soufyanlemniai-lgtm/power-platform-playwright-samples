@@ -8,6 +8,7 @@
 import { existsSync, unlinkSync, readFileSync, statSync } from 'fs';
 import { getStorageStatePath } from 'power-platform-playwright-toolkit';
 import * as path from 'path';
+import { isModelDrivenCookie } from './model-driven-auth';
 
 export interface AuthValidationResult {
   valid: boolean;
@@ -85,14 +86,12 @@ export function validateAuthState(): AuthValidationResult {
   }
 
   // For MDA project: verify CRM cookies are present before the age check.
-  // We don't check individual cookie expiry — session cookies on crm.dynamics.com
+  // We don't check individual cookie expiry — session cookies on regional CRM domains
   // typically last longer than a day, and the file-age check below is the authority.
   if (projectType === 'mda') {
     try {
       const stateData = JSON.parse(readFileSync(storageStatePath, 'utf-8'));
-      const crmCookies = (stateData.cookies || []).filter(
-        (c: any) => c.domain && c.domain.includes('crm.dynamics.com')
-      );
+      const crmCookies = (stateData.cookies || []).filter(isModelDrivenCookie);
       if (crmCookies.length === 0) {
         return {
           valid: false,

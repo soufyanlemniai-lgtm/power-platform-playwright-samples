@@ -48,7 +48,7 @@ export default defineConfig({
   globalTeardown: require.resolve('./globals/global-teardown'),
 
   /* Run tests in files in parallel */
-  fullyParallel: !process.env.CI,
+  fullyParallel: false,
 
   /* Fail the build on CI if you accidentally left test.only in the source code */
   forbidOnly: !!process.env.CI,
@@ -66,7 +66,7 @@ export default defineConfig({
   ],
 
   /* Worker configuration */
-  workers: getEnvironmentConfig().workers,
+  workers: 1,
 
   /* Output directory */
   outputDir: path.join(getEnvironmentConfig().outputDirectory, 'artifacts'),
@@ -129,7 +129,7 @@ export default defineConfig({
   projects: [
     {
       name: 'model-driven-app',
-      testDir: path.join(getEnvironmentConfig().testDirectory, 'northwind', 'mda'),
+      testDir: path.join(getEnvironmentConfig().testDirectory, 'ines', 'mda'),
       testMatch: '**/*.test.ts',
       use: {
         // Use MDA-specific storage state
@@ -198,7 +198,7 @@ export default defineConfig({
       name: 'default',
       testDir: getEnvironmentConfig().testDirectory,
       testMatch: '**/*.test.ts',
-      testIgnore: ['**/custom-page/**'],
+      testIgnore: ['**/custom-page/**', '**/northwind/mda/**', '**/ines/mda/**'],
       use: {
         // Use default storage state
         storageState: process.env.MS_AUTH_EMAIL
